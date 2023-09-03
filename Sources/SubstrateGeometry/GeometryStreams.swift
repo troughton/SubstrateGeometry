@@ -521,7 +521,7 @@ public struct GeometryStreams: Equatable, Codable, Sendable {
         }
     }
     
-    @usableFromInline var streams = [Stream?](repeating: nil, count: StreamMask.RawValue.bitWidth)
+    public var streams = [Stream?](repeating: nil, count: StreamMask.RawValue.bitWidth)
     
     public var indexStreams = [IndexStream]()
     

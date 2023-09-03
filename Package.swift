@@ -18,12 +18,26 @@ let package = Package(
         .library(
             name: "SubstrateGeometry",
             targets: ["SubstrateGeometry"]
+        ),
+        .library(
+            name: "MeshOptimizer",
+            targets: ["MeshOptimizer"]
+        ),
+        .library(
+            name: "MikkTSpace",
+            targets: ["MikkTSpace"]
+        ),
+        .library(
+            name: "cgltf",
+            targets: ["cgltf", "cgltfwrite"]
         )
     ],
     dependencies: [
-        .package(name: "Substrate", url: "https://github.com/troughton/SubstrateRender", branch: "immediate-mode")
+        .package(name: "Substrate", url: "https://github.com/troughton/SubstrateRender", branch: "immediate-mode"),
+        .package(name: "CAssimp", url: "https://github.com/troughton/CAssimp", from: "5.0.0"),
     ],
     targets: [
+        
         .target(
             name: "MeshOptimizer",
             publicHeadersPath: ""
@@ -49,7 +63,8 @@ let package = Package(
                 "MeshOptimizer",
                 "cgltf",
                 "MikkTSpace",
-                .product(name: "SubstrateMath", package: "Substrate")
+                .product(name: "SubstrateMath", package: "Substrate"),
+                .product(name: "CAssimp", package: "CAssimp")
             ]
         )
     ]

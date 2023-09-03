@@ -10,9 +10,16 @@ import CAssimp
 import Foundation
 import SubstrateMath
 
+extension SIMD3<Float> {
+    @inlinable
+    public init(_ aiVector: aiVector3D) {
+        self.init(aiVector.x, aiVector.y, aiVector.z)
+    }
+}
+
 extension GeometryStreams {
-    init(mesh: UnsafePointer<aiMesh>) {
-        let vertexCount = Int(mesh.pointee.mNumVertices)
+    public init(assimpMesh mesh: aiMesh) {
+        let vertexCount = Int(mesh.mNumVertices)
         
         self.init(vertexCount: vertexCount)
         self.makeStream(type: .positions, sizePerVertex: 3 * MemoryLayout<Float>.size, stridePerVertex: MemoryLayout<SIMD3<Float>>.stride)
@@ -21,14 +28,14 @@ extension GeometryStreams {
         
         self.indexStreams = []
         
-        switch mesh.pointee.mPrimitiveTypes {
-        case aiPrimitiveType_Points:
-            let indexCount = Int(mesh.pointee.mNumFaces)
+        switch aiPrimitiveType(mesh.mPrimitiveTypes) {
+        case aiPrimitiveType_POINT:
+            let indexCount = Int(mesh.mNumFaces)
             let indices = [UInt32](unsafeUninitializedCapacity: indexCount) { indices, initializedCount in
                 initializedCount = indexCount
                 
-                for faceNum in 0..<Int(mesh.pointee.mNumFaces) {
-                    let face = mesh.pointee.mFaces[faceNum]
+                for faceNum in 0..<Int(mesh.mNumFaces) {
+                    let face = mesh.mFaces[faceNum]
                     assert(face.mNumIndices == 1, "The faces must be points.")
                     
                     let index0 = UInt32(truncatingIfNeeded: face.mIndices[0])
@@ -38,13 +45,13 @@ extension GeometryStreams {
             
             self.indexStreams = [.init(primitiveType: .point, indices: indices)]
             
-        case aiPrimitiveType_Lines:
-            let indexCount = Int(mesh.pointee.mNumFaces * 2)
+        case aiPrimitiveType_LINE:
+            let indexCount = Int(mesh.mNumFaces * 2)
             let indices = [UInt32](unsafeUninitializedCapacity: indexCount) { indices, initializedCount in
                 initializedCount = indexCount
                 
-                for faceNum in 0..<Int(mesh.pointee.mNumFaces) {
-                    let face = mesh.pointee.mFaces[faceNum]
+                for faceNum in 0..<Int(mesh.mNumFaces) {
+                    let face = mesh.mFaces[faceNum]
                     assert(face.mNumIndices == 2, "The faces must be lines.")
                     
                     let index0 = UInt32(truncatingIfNeeded: face.mIndices[0])
@@ -56,13 +63,13 @@ extension GeometryStreams {
             
             self.indexStreams = [.init(primitiveType: .line, indices: indices)]
             
-        case aiPrimitiveType_Triangles:
-            let indexCount = Int(mesh.pointee.mNumFaces * 3)
+        case aiPrimitiveType_TRIANGLE:
+            let indexCount = Int(mesh.mNumFaces * 3)
             let indices = [UInt32](unsafeUninitializedCapacity: indexCount) { indices, initializedCount in
                 initializedCount = indexCount
                 
-                for faceNum in 0..<Int(mesh.pointee.mNumFaces) {
-                    let face = mesh.pointee.mFaces[faceNum]
+                for faceNum in 0..<Int(mesh.mNumFaces) {
+                    let face = mesh.mFaces[faceNum]
                     assert(face.mNumIndices == 3, "The faces must be triangulated.")
                     
                     let index0 = UInt32(truncatingIfNeeded: face.mIndices[0])
@@ -82,21 +89,21 @@ extension GeometryStreams {
             var lineIndices = [UInt32]()
             var triangleIndices = [UInt32]()
             
-            for faceNum in 0..<Int(mesh.pointee.mNumFaces) {
-                let face = mesh.pointee.mFaces[faceNum]
+            for faceNum in 0..<Int(mesh.mNumFaces) {
+                let face = mesh.mFaces[faceNum]
                 
-                switch face.primitiveType {
-                case aiPrimitiveType_Points:
+                switch face.mNumIndices {
+                case 1:
                     let index0 = UInt32(truncatingIfNeeded: face.mIndices[0])
                     pointIndices.append(index0)
                     
-                case aiPrimitiveType_Lines:
+                case 2:
                     let index0 = UInt32(truncatingIfNeeded: face.mIndices[0])
                     let index1 = UInt32(truncatingIfNeeded: face.mIndices[1])
                     lineIndices.append(index0)
                     lineIndices.append(index1)
                     
-                case aiPrimitiveType_Triangles:
+                case 3:
                     let index0 = UInt32(truncatingIfNeeded: face.mIndices[0])
                     let index1 = UInt32(truncatingIfNeeded: face.mIndices[1])
                     let index2 = UInt32(truncatingIfNeeded: face.mIndices[2])
@@ -124,17 +131,17 @@ extension GeometryStreams {
         
         self.positions.withMutableContents(as: SIMD3<Float>.self, perform: { outPositions in
             for i in 0..<vertexCount {
-                outPositions.baseAddress!.advanced(by: i).initialize(to: .init(mesh.pointee.mVertices[i]))
+                outPositions.baseAddress!.advanced(by: i).initialize(to: .init(mesh.mVertices[i]))
             }
         })
         
         self.normals!.withMutableContents(as: SIMD3<Float>.self, perform: { outNormals in
             for i in 0..<vertexCount {
-                outNormals.baseAddress!.advanced(by: i).initialize(to: .init(mesh.pointee.mNormals[i]))
+                outNormals.baseAddress!.advanced(by: i).initialize(to: .init(mesh.mNormals[i]))
             }
         })
         
-        if let tangents = mesh.pointee.mTangents {
+        if let tangents = mesh.mTangents {
             self.makeStream(type: .tangents, sizePerVertex: 3 * MemoryLayout<Float>.size, stridePerVertex: MemoryLayout<SIMD3<Float>>.stride)
             
             self.tangents!.withMutableContents(as: SIMD3<Float>.self, perform: { outTangents in
@@ -144,7 +151,7 @@ extension GeometryStreams {
             })
         }
         
-        if let bitangents = mesh.pointee.mBitangents {
+        if let bitangents = mesh.mBitangents {
             self.makeStream(type: .bitangents, sizePerVertex: 3 * MemoryLayout<Float>.size, stridePerVertex: MemoryLayout<SIMD3<Float>>.stride)
             
             self[.bitangents]!.withMutableContents(as: SIMD3<Float>.self, perform: { outBitangents in
@@ -154,10 +161,10 @@ extension GeometryStreams {
             })
         }
         
-        withUnsafeBytes(of: mesh.pointee.mTextureCoords) { texCoordArrays in
+        withUnsafeBytes(of: mesh.mTextureCoords) { texCoordArrays in
             let texCoordArrays = texCoordArrays.bindMemory(to: UnsafeMutablePointer<aiVector3D>?.self)
             
-            withUnsafeBytes(of: mesh.pointee.mNumUVComponents) { uvComponentCounts in
+            withUnsafeBytes(of: mesh.mNumUVComponents) { uvComponentCounts in
                 let uvComponentCounts = uvComponentCounts.bindMemory(to: UInt32.self)
                 
                 for i in 0..<Int(AI_MAX_NUMBER_OF_TEXTURECOORDS) {
@@ -180,7 +187,7 @@ extension GeometryStreams {
             }
         }
         
-        withUnsafeBytes(of: mesh.pointee.mColors) { colorArrays in
+        withUnsafeBytes(of: mesh.mColors) { colorArrays in
             let colorArrays = colorArrays.bindMemory(to: UnsafeMutablePointer<aiColor4D>?.self)
             
             for i in 0..<Int(AI_MAX_NUMBER_OF_COLOR_SETS) {
@@ -198,21 +205,12 @@ extension GeometryStreams {
             }
         }
         
-        if mesh.pointee.mNumBones > 0 {
-            self.bones = (0..<Int(mesh.pointee.mNumBones)).map { i in
-                let bone = mesh.pointee.mBones[i]!
-                
-                var offsetMatrix = bone.pointee.mOffsetMatrix
-                aiTransposeMatrix4(&offsetMatrix)
-                return Bone(name: String(bone.pointee.mName),
-                            offsetMatrix: AffineMatrix(unsafeBitCast(offsetMatrix, to: Matrix4x4f.self)))
-            }
-            
+        if mesh.mNumBones > 0 {
             self.boneIndicesAndWeights = .init(repeating: [], count: vertexCount)
             
             // Ordered per-vertex, then per-bone.
-            for boneNum in 0..<mesh.pointee.mNumBones {
-                let bone = mesh.pointee.mBones[Int(boneNum)]!
+            for boneNum in 0..<mesh.mNumBones {
+                let bone = mesh.mBones[Int(boneNum)]!
                 
                 for weightNum in 0..<Int(bone.pointee.mNumWeights) {
                     let weight = bone.pointee.mWeights[weightNum];
