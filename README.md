@@ -1,3 +1,3 @@
-# MeshletCulling
+# SubstrateGeometry
 
-A description of this package.
+A wrapper around MeshOptimizer, CGLTF, and Assimp.
